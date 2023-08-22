@@ -25,3 +25,41 @@ Resized position embedding from size:torch.Size([1, 197, 768]) to size: torch.Si
 0
 [8094 8142 8180 ...  359  368  362]
 [6692 6693 6677 ...  190  196  201]
+Epoch: [0][0/706] Loss:18.435 iLoss:6.569 TLoss:11.866 
+Epoch: [0][50/706] Loss:11.758 iLoss:6.455 TLoss:5.303 
+Epoch: [0][100/706] Loss:9.344 iLoss:6.507 TLoss:2.837 
+Epoch: [0][150/706] Loss:8.474 iLoss:6.203 TLoss:2.271 
+Epoch: [0][200/706] Loss:8.168 iLoss:6.257 TLoss:1.911 
+Epoch: [0][250/706] Loss:7.467 iLoss:6.009 TLoss:1.457 
+Epoch: [0][300/706] Loss:7.600 iLoss:5.964 TLoss:1.636 
+Epoch: [0][350/706] Loss:6.800 iLoss:5.642 TLoss:1.158 
+Epoch: [0][400/706] Loss:7.021 iLoss:5.638 TLoss:1.383 
+Epoch: [0][450/706] Loss:7.091 iLoss:5.850 TLoss:1.241 
+Epoch: [0][500/706] Loss:6.629 iLoss:5.693 TLoss:0.937 
+Epoch: [0][550/706] Loss:6.992 iLoss:5.933 TLoss:1.059 
+Epoch: [0][600/706] Loss:7.232 iLoss:6.249 TLoss:0.984 
+Epoch: [0][650/706] Loss:7.307 iLoss:6.422 TLoss:0.886 
+Epoch: [0][700/706] Loss:6.876 iLoss:5.942 TLoss:0.934 
+==> Preparing Data Loader...
+1
+[ 4092  4102  4088 ... 10245 10242 10232]
+[3218 3206 3204 ... 8425 8420 8421]
+Epoch: [1][0/706] Loss:6.375 iLoss:5.543 TLoss:0.832 
+Epoch: [1][50/706] Loss:6.394 iLoss:5.637 TLoss:0.757 
+Epoch: [1][100/706] Loss:7.005 iLoss:6.082 TLoss:0.924 
+Epoch: [1][150/706] Loss:6.255 iLoss:5.544 TLoss:0.711 
+Epoch: [1][200/706] Loss:6.825 iLoss:5.865 TLoss:0.961 
+Epoch: [1][250/706] Loss:6.652 iLoss:5.845 TLoss:0.807 
+Epoch: [1][300/706] Loss:6.084 iLoss:5.300 TLoss:0.784 
+Epoch: [1][350/706] Loss:6.844 iLoss:5.939 TLoss:0.905 
+Epoch: [1][400/706] Loss:6.306 iLoss:5.603 TLoss:0.704 
+Epoch: [1][450/706] Loss:6.737 iLoss:5.923 TLoss:0.814 
+Epoch: [1][500/706] Loss:6.708 iLoss:5.972 TLoss:0.736 
+Epoch: [1][550/706] Loss:6.021 iLoss:5.428 TLoss:0.593 
+Epoch: [1][600/706] Loss:6.261 iLoss:5.320 TLoss:0.941 
+Epoch: [1][650/706] Loss:6.168 iLoss:5.531 TLoss:0.637 
+Epoch: [1][700/706] Loss:6.166 iLoss:5.502 TLoss:0.664 
+==> Preparing Data Loader...
+2
+[2250 2258 2253 ...  803  797  795]
+[1588 1582 1589 ...  539  537  536]
