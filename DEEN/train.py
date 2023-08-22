@@ -212,13 +212,7 @@ net = vit_base_patch16_224_TransReID()
 # net_dict.update(pretrained_dict)
 # net.load_state_dict(net_dict)
 # net.to(device)
-# # 加载预训练模型的参数
-# pretrained_dict = torch.load('/home/guohangyu/data/VIReID/DEENwithTransReID/DEEN/model/vit_base.pth')
-# net_dict = net.state_dict()
-# pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in net_dict}
-# net_dict.update(pretrained_dict)
-# net.load_state_dict(net_dict)
-# net.to(device)
+
 
 
 print("load data finish")
