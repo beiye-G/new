@@ -1,0 +1,22 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            // "program": "/home/guohangyu/data/VIReID/DEEN/DEEN/test.py",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "0"
+            },
+            "args": ["--dataset", "llcm", "--resume", "llcm_deen_p4_n6_lr_0.1_seed_0_best.t"],
+            "cwd": "/home/guohangyu/data/VIReID/DEEN/DEEN"
+        }
+    ]
+}

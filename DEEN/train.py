@@ -14,6 +14,7 @@ from data_loader import SYSUData, RegDBData, LLCMData, TestData
 from data_manager import *
 from eval_metrics import eval_sysu, eval_regdb, eval_llcm
 from model import embed_net
+from model_ViT import TransReID, vit_base_patch16_224_TransReID, vit_small_patch16_224_TransReID, deit_small_patch16_224_TransReID
 from utils import *
 from loss import OriTripletLoss, CPMLoss
 from tensorboardX import SummaryWriter
@@ -31,9 +32,12 @@ parser.add_argument('--save_epoch', default=20, type=int, metavar='s', help='sav
 parser.add_argument('--log_path', default='log/', type=str, help='log save path')
 parser.add_argument('--vis_log_path', default='log/vis_log/', type=str, help='log save path')
 parser.add_argument('--workers', default=4, type=int, metavar='N', help='number of data loading workers (default: 4)')
-parser.add_argument('--img_w', default=144, type=int, metavar='imgw', help='img width')
-parser.add_argument('--img_h', default=384, type=int, metavar='imgh', help='img height')
-parser.add_argument('--batch-size', default=6, type=int, metavar='B', help='training batch size')
+# parser.add_argument('--img_w', default=144, type=int, metavar='imgw', help='img width')
+# parser.add_argument('--img_h', default=384, type=int, metavar='imgh', help='img height')
+parser.add_argument('--img_w', default=128, type=int, metavar='imgw', help='img width')
+parser.add_argument('--img_h', default=256, type=int, metavar='imgh', help='img height')
+# parser.add_argument('--batch-size', default=6, type=int, metavar='B', help='training batch size')
+parser.add_argument('--batch-size', default=8, type=int, metavar='B', help='training batch size')
 parser.add_argument('--test-batch', default=4, type=int, metavar='tb', help='testing batch size')
 parser.add_argument('--margin', default=0.3, type=float, metavar='margin', help='triplet loss margin')
 parser.add_argument('--erasing_p', default=0.5, type=float, help='Random Erasing probability, in [0,1]')
@@ -198,8 +202,25 @@ print('  ------------------------------')
 print('Data Loading Time:\t {:.3f}'.format(time.time() - end))
 
 print('==> Building model..')
-net = embed_net(n_class, dataset, arch=args.arch)
+# net = embed_net(n_class, dataset, arch=args.arch)
+net = vit_base_patch16_224_TransReID()
+
+# # 加载预训练模型的参数
+# pretrained_dict = torch.load('/home/guohangyu/data/VIReID/DEENwithTransReID/DEEN/model/vit_base.pth')
+# net_dict = net.state_dict()
+# pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in net_dict}
+# net_dict.update(pretrained_dict)
+# net.load_state_dict(net_dict)
+# net.to(device)
+
+print("load data finish")
+
+# 加载预训练模型的参数
+pretrained_dict = torch.load('/home/guohangyu/data/VIReID/DEENwithTransReID/DEEN/model/vit_base.pth')
+net.load_state_dict(pretrained_dict)
 net.to(device)
+
+
 cudnn.benchmark = True
 
 if len(args.resume) > 0:
@@ -258,6 +279,25 @@ def adjust_learning_rate(optimizer, epoch):
  
     return lr
 
+# #####################################################################
+def weights_init_kaiming(m):
+    classname = m.__class__.__name__
+    # print(classname)
+    if classname.find('Conv') != -1:
+        init.kaiming_normal_(m.weight.data, a=0, mode='fan_in')
+    elif classname.find('Linear') != -1:
+        init.kaiming_normal_(m.weight.data, a=0, mode='fan_out')
+        init.zeros_(m.bias.data)
+    elif classname.find('BatchNorm1d') != -1:
+        init.normal_(m.weight.data, 1.0, 0.01)
+        init.zeros_(m.bias.data)
+
+# BNNeck
+pool_dim = 2048
+bottleneck = nn.BatchNorm1d(pool_dim)
+bottleneck.bias.requires_grad_(False)  # no shift
+bottleneck.apply(weights_init_kaiming)
+
 def train(epoch):
 
     current_lr = adjust_learning_rate(optimizer, epoch)
@@ -277,31 +317,27 @@ def train(epoch):
 
     for batch_idx, (input1, input2, label1, label2) in enumerate(trainloader):
 
-        labs = torch.cat((label1, label1, label2, label2), 0)
-        labels = torch.cat((label1, label1, label1, label2, label2, label2), 0)
+        labels = torch.cat((label1, label2), 0)
 
         input1 = Variable(input1.cuda())
         input2 = Variable(input2.cuda())
 
-        labs = Variable(labs.cuda())
         labels = Variable(labels.cuda())
         data_time.update(time.time() - end)
 
-        # 训练时self.training = True
-        # feat1 [144,2048] 一个batch里所有可见光和红外图像的特征，以及DEE的生成的特征
-        feat1, out1, loss_ort = net(input1, input2)
+        feat1 = net(input1)
+        feat2 = net(input2)
         # print(net.training)
         # print(net)
 
-        loss_id = criterion_id(out1, labels)
-        
-        loss_tri = criterion_tri(feat1, labels)
-        # ft1, ft2, ft3 [48, 2048]. ft1是可见光和红外的原特征，ft2和ft3是DEE生成的特征
-        ft1, ft2, ft3 = torch.chunk(feat1, 3, 0)
-        loss_cpm = (criterion_cpm(torch.cat((ft1, ft2), 0), labs) + criterion_cpm(torch.cat((ft1, ft3), 0), labs)) *  args.lambda_1
-        loss_ort = loss_ort *  args.lambda_2
+        feat = torch.cat((feat1, feat2), 0)
+        feat_att = bottleneck(feat)    
+        classifier = nn.Linear(pool_dim, n_class, bias=False)
+        out = classifier(feat_att)
 
-        loss = loss_id + loss_tri + loss_cpm + loss_ort
+        loss_id = criterion_id(out, labels)        
+        loss_tri = criterion_tri(feat, labels)
+        loss = loss_id + loss_tri 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -310,8 +346,6 @@ def train(epoch):
         train_loss.update(loss.item(), 2 * input1.size(0))
         id_loss.update(loss_id.item(), 2 * input1.size(0))
         tri_loss.update(loss_tri.item(), 2 * input1.size(0))
-        cpm_loss.update(loss_cpm.item(), 2 * input1.size(0))
-        ort_loss.update(loss_ort.item(), 2 * input1.size(0))
         total += labels.size(0)
 
         # measure elapsed time
@@ -330,9 +364,8 @@ def train(epoch):
     writer.add_scalar('total_loss', train_loss.avg, epoch)
     writer.add_scalar('id_loss', id_loss.avg, epoch)
     writer.add_scalar('tri_loss', tri_loss.avg, epoch)
-    writer.add_scalar('cpm_loss', cpm_loss.avg, epoch)
-    writer.add_scalar('ort_loss', ort_loss.avg, epoch)
     writer.add_scalar('lr', current_lr, epoch)
+
 
 
 def test(epoch):
@@ -341,34 +374,17 @@ def test(epoch):
     print('Extracting Gallery Feature...')
     start = time.time()
     ptr = 0
-    gall_feat1 = np.zeros((ngall, pool_dim))
-    gall_feat2 = np.zeros((ngall, pool_dim))
-    gall_feat3 = np.zeros((ngall, pool_dim))
-    gall_feat4 = np.zeros((ngall, pool_dim))
-    gall_feat5 = np.zeros((ngall, pool_dim))
-    gall_feat6 = np.zeros((ngall, pool_dim))
+    gall_feat = np.zeros((ngall, 2048))
+    gall_feat_att = np.zeros((ngall, 2048))
     with torch.no_grad():
         for batch_idx, (input, label) in enumerate(gall_loader):
-            # 将query图像的所有特征提取出来
-            print('input shape', input.shape)
-            batch_num = input.size(0) #4
-            print('batch_num', batch_num)
+            batch_num = input.size(0)
             input = Variable(input.cuda())
-            # feat和feat_att的区别是后者经过了BN层，而前者没有经过BN层
-            feat, feat_att = net(input, input, test_mode[0])
-            print('feat shape', feat.shape) #12, 2048
-            print('feat_att shape', feat_att.shape) #12, 2048
-            # DEE模块的第一个输出
-            gall_feat1[ptr:ptr + batch_num, :] = feat[:batch_num].detach().cpu().numpy()
-            print('gall_feat1', gall_feat1)
-            gall_feat2[ptr:ptr + batch_num, :] = feat_att[:batch_num].detach().cpu().numpy()
-            print('gall_feat2', gall_feat2)
-            # DEE模块的第二个输出
-            gall_feat3[ptr:ptr + batch_num, :] = feat[batch_num:batch_num*2].detach().cpu().numpy()
-            gall_feat4[ptr:ptr + batch_num, :] = feat_att[batch_num:batch_num*2].detach().cpu().numpy()
-            # DEE模块的第三个输出
-            gall_feat5[ptr:ptr + batch_num, :] = feat[batch_num*2:].detach().cpu().numpy()
-            gall_feat6[ptr:ptr + batch_num, :] = feat_att[batch_num*2:].detach().cpu().numpy()
+            # feat, feat_att = net(input, input, test_mode[0])
+            feat = net(input)
+            feat_att = bottleneck(feat)
+            gall_feat[ptr:ptr + batch_num, :] = feat.detach().cpu().numpy()
+            gall_feat_att[ptr:ptr + batch_num, :] = feat_att.detach().cpu().numpy()
             ptr = ptr + batch_num
     print('Extracting Time:\t {:.3f}'.format(time.time() - start))
 
@@ -377,60 +393,45 @@ def test(epoch):
     print('Extracting Query Feature...')
     start = time.time()
     ptr = 0
-    query_feat1 = np.zeros((nquery, pool_dim))
-    query_feat2 = np.zeros((nquery, pool_dim))
-    query_feat3 = np.zeros((nquery, pool_dim))
-    query_feat4 = np.zeros((nquery, pool_dim))
-    query_feat5 = np.zeros((nquery, pool_dim))
-    query_feat6 = np.zeros((nquery, pool_dim))
+    query_feat = np.zeros((nquery, 2048))
+    # feat和feat_att的区别是后者经过了BN层，而前者没有经过BN层
+    # query_feat_att = np.zeros((nquery, 2048))
     with torch.no_grad():
         for batch_idx, (input, label) in enumerate(query_loader):
             batch_num = input.size(0)
             input = Variable(input.cuda())
-            feat, feat_att = net(input, input, test_mode[1])
-            # DEE模块的第一个输出
-            query_feat1[ptr:ptr + batch_num, :] = feat[:batch_num].detach().cpu().numpy()
-            query_feat2[ptr:ptr + batch_num, :] = feat_att[:batch_num].detach().cpu().numpy()
-            # DEE模块的第二个输出
-            query_feat3[ptr:ptr + batch_num, :] = feat[batch_num:batch_num*2].detach().cpu().numpy()
-            query_feat4[ptr:ptr + batch_num, :] = feat_att[batch_num:batch_num*2].detach().cpu().numpy()
-            # DEE模块的第三个输出
-            query_feat5[ptr:ptr + batch_num, :] = feat[batch_num*2:].detach().cpu().numpy()
-            query_feat6[ptr:ptr + batch_num, :] = feat_att[batch_num*2:].detach().cpu().numpy()
+            # feat, feat_att = net(input, input, test_mode[1])
+            feat = net(input)
+            feat_att = bottleneck(feat)
+            query_feat[ptr:ptr + batch_num, :] = feat.detach().cpu().numpy()
+            query_feat_att[ptr:ptr + batch_num, :] = feat_att.detach().cpu().numpy()
             ptr = ptr + batch_num
     print('Extracting Time:\t {:.3f}'.format(time.time() - start))
 
     start = time.time()
     # compute the similarity
-    # 计算query和gallery分别经过DEE模块后，三个输出的特征的相似度
-    distmat1 = np.matmul(query_feat1, np.transpose(gall_feat1))
-    distmat2 = np.matmul(query_feat2, np.transpose(gall_feat2))
-    distmat3 = np.matmul(query_feat3, np.transpose(gall_feat3))
-    distmat4 = np.matmul(query_feat4, np.transpose(gall_feat4))
-    distmat5 = np.matmul(query_feat5, np.transpose(gall_feat5))
-    distmat6 = np.matmul(query_feat6, np.transpose(gall_feat6))
-    distmat7 = distmat1 + distmat2 + distmat3 + distmat4 + distmat5 + distmat6
+    distmat = np.matmul(query_feat, np.transpose(gall_feat))
+    distmat_att = np.matmul(query_feat_att, np.transpose(gall_feat_att))
 
     # evaluation
     if dataset == 'regdb':
-        # 只计算DEE第一层输出的测试结果
-        cmc1, mAP1, mINP1 = eval_regdb(-distmat1, query_label, gall_label)
-        # 只计算DEE第二层输出的测试结果
-        cmc2, mAP2, mINP2 = eval_regdb(-distmat2, query_label, gall_label)
-        # 计算DEE三层总共的输出的测试结果
-        cmc7, mAP7, mINP7 = eval_regdb(-distmat7, query_label, gall_label)
+        cmc, mAP, mINP      = eval_regdb(-distmat, query_label, gall_label)
+        cmc_att, mAP_att, mINP_att  = eval_regdb(-distmat_att, query_label, gall_label)
     elif dataset == 'sysu':
-        cmc1, mAP1, mINP1 = eval_sysu(-distmat1, query_label, gall_label, query_cam, gall_cam)
-        cmc2, mAP2, mINP2 = eval_sysu(-distmat2, query_label, gall_label, query_cam, gall_cam)
-        cmc7, mAP7, mINP7 = eval_sysu(-distmat7, query_label, gall_label, query_cam, gall_cam)
+        cmc, mAP, mINP = eval_sysu(-distmat, query_label, gall_label, query_cam, gall_cam)
+        cmc_att, mAP_att, mINP_att = eval_sysu(-distmat_att, query_label, gall_label, query_cam, gall_cam)
     elif dataset == 'llcm':
-        cmc1, mAP1, mINP1 = eval_llcm(-distmat1, query_label, gall_label, query_cam, gall_cam)
-        cmc2, mAP2, mINP2 = eval_llcm(-distmat2, query_label, gall_label, query_cam, gall_cam)
-        cmc7, mAP7, mINP7 = eval_llcm(-distmat7, query_label, gall_label, query_cam, gall_cam)
+        cmc, mAP, mINP = eval_llcm(-distmat, query_label, gall_label, query_cam, gall_cam)
+        cmc_att, mAP_att, mINP_att = eval_llcm(-distmat_att, query_label, gall_label, query_cam, gall_cam)
     print('Evaluation Time:\t {:.3f}'.format(time.time() - start))
 
-
-    return cmc1, mAP1, mINP1, cmc2, mAP2, mINP2, cmc7, mAP7, mINP7
+    writer.add_scalar('rank1', cmc[0], epoch)
+    writer.add_scalar('mAP', mAP, epoch)
+    writer.add_scalar('mINP', mINP, epoch)
+    writer.add_scalar('rank1_att', cmc_att[0], epoch)
+    writer.add_scalar('mAP_att', mAP_att, epoch)
+    writer.add_scalar('mINP_att', mINP_att, epoch)
+    return cmc, mAP, mINP, cmc_att, mAP_att, mINP_att
 
 
 # training
@@ -447,12 +448,9 @@ for epoch in range(start_epoch, 151 - start_epoch):
     trainset.tIndex = sampler.index2  # thermal index
     print(epoch)
     print(trainset.cIndex)
-    print(len(trainset.cIndex)) #22272, 16968
     print(trainset.tIndex)
-    print(len(trainset.tIndex)) #22272, 16968
 
     loader_batch = args.batch_size * args.num_pos
-    print('Batch size: {}'.format(loader_batch))
 
     trainloader = data.DataLoader(trainset, batch_size=loader_batch, \
                                   sampler=sampler, num_workers=args.workers, drop_last=True)
@@ -460,29 +458,36 @@ for epoch in range(start_epoch, 151 - start_epoch):
     # training
     train(epoch)
 
-    if epoch > 0 and epoch % 1 == 0:
+    if epoch > 0 and epoch % 2 == 0:
         print('Test Epoch: {}'.format(epoch))
     
         # testing
-        cmc1, mAP1, mINP1, cmc2, mAP2, mINP2, cmc7, mAP7, mINP7 = test(epoch)
+        cmc, mAP, mINP, cmc_att, mAP_att, mINP_att = test(epoch)
         # save model
-        if cmc7[0] > best_acc:  # not the real best for sysu-mm01
-            # 将Rank-1的准确率作为最优模型的标准
-            best_acc = cmc7[0]
+        if cmc_att[0] > best_acc:  # not the real best for sysu-mm01
+            best_acc = cmc_att[0]
             best_epoch = epoch
             state = {
                 'net': net.state_dict(),
-                'cmc': cmc7,
-                'mAP': mAP7,
-                'mINP': mINP7,
+                'cmc': cmc_att,
+                'mAP': mAP_att,
+                'mINP': mINP_att,
                 'epoch': epoch,
             }
             torch.save(state, checkpoint_path + suffix + '_best.t')
     
+        # save model
+        if epoch > 10 and epoch % args.save_epoch == 0:
+            state = {
+                'net': net.state_dict(),
+                'cmc': cmc,
+                'mAP': mAP,
+                'epoch': epoch,
+            }
+            torch.save(state, checkpoint_path + suffix + '_epoch_{}.t'.format(epoch))
+    
         print('POOL:   Rank-1: {:.2%} | Rank-5: {:.2%} | Rank-10: {:.2%}| Rank-20: {:.2%}| mAP: {:.2%}| mINP: {:.2%}'.format(
-            cmc1[0], cmc1[4], cmc1[9], cmc1[19], mAP1, mINP1))
-        print('POOL:   Rank-1: {:.2%} | Rank-5: {:.2%} | Rank-10: {:.2%}| Rank-20: {:.2%}| mAP: {:.2%}| mINP: {:.2%}'.format(
-            cmc2[0], cmc2[4], cmc2[9], cmc2[19], mAP2, mINP2))
-        print('POOL:   Rank-1: {:.2%} | Rank-5: {:.2%} | Rank-10: {:.2%}| Rank-20: {:.2%}| mAP: {:.2%}| mINP: {:.2%}'.format(
-            cmc7[0], cmc7[4], cmc7[9], cmc7[19], mAP7, mINP7))
+            cmc[0], cmc[4], cmc[9], cmc[19], mAP, mINP))
+        print('FC:   Rank-1: {:.2%} | Rank-5: {:.2%} | Rank-10: {:.2%}| Rank-20: {:.2%}| mAP: {:.2%}| mINP: {:.2%}'.format(
+            cmc_att[0], cmc_att[4], cmc_att[9], cmc_att[19], mAP_att, mINP_att))
         print('Best Epoch [{}]'.format(best_epoch))

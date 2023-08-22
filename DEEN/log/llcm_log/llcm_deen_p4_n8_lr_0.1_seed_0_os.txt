@@ -1,0 +1,16 @@
+==========
+Args:Namespace(arch='resnet50', batch_size=8, dataset='llcm', erasing_p=0.5, gpu='0', img_h=256, img_w=128, lambda_1=0.8, lambda_2=0.01, log_path='log/', lr=0.1, margin=0.3, mode='all', model_path='save_model/', num_pos=4, optim='sgd', resume='', save_epoch=20, seed=0, test_batch=4, test_only=False, trial=2, vis_log_path='log/vis_log/', workers=4)
+==========
+==> Loading data..
+Dataset llcm statistics:
+  ------------------------------
+  subset   | # ids | # images
+  ------------------------------
+  visible  |   713 |    16946
+  thermal  |   713 |    13975
+  ------------------------------
+  query    |   351 |     7166
+  gallery  |   351 |      484
+  ------------------------------
+Data Loading Time:	 71.126
+==> Building model..
