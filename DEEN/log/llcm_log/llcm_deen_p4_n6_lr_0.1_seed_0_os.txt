@@ -12,9 +12,16 @@ Dataset llcm statistics:
   query    |   351 |     7166
   gallery  |   351 |      484
   ------------------------------
-Data Loading Time:	 72.787
+Data Loading Time:	 71.481
 ==> Building model..
 using stride: 16, and patch number is num_y16 * num_x8
 using drop_out rate is : 0.0
 using attn_drop_out rate is : 0.0
 using drop_path rate is : 0.1
+load data finish
+Resized position embedding from size:torch.Size([1, 197, 768]) to size: torch.Size([1, 129, 768]) with height:16 width: 8
+==> Start Training...
+==> Preparing Data Loader...
+0
+[8094 8142 8180 ...  359  368  362]
+[6692 6693 6677 ...  190  196  201]

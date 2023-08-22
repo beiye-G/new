@@ -36,8 +36,8 @@ parser.add_argument('--workers', default=4, type=int, metavar='N', help='number 
 # parser.add_argument('--img_h', default=384, type=int, metavar='imgh', help='img height')
 parser.add_argument('--img_w', default=128, type=int, metavar='imgw', help='img width')
 parser.add_argument('--img_h', default=256, type=int, metavar='imgh', help='img height')
-# parser.add_argument('--batch-size', default=6, type=int, metavar='B', help='training batch size')
-parser.add_argument('--batch-size', default=8, type=int, metavar='B', help='training batch size')
+parser.add_argument('--batch-size', default=6, type=int, metavar='B', help='training batch size')
+# parser.add_argument('--batch-size', default=8, type=int, metavar='B', help='training batch size')
 parser.add_argument('--test-batch', default=4, type=int, metavar='tb', help='testing batch size')
 parser.add_argument('--margin', default=0.3, type=float, metavar='margin', help='triplet loss margin')
 parser.add_argument('--erasing_p', default=0.5, type=float, help='Random Erasing probability, in [0,1]')
@@ -60,19 +60,19 @@ if dataset == 'sysu':
     # data_path = '/home/guohangyu/data/datasets/SYSU-MM01'
     log_path = args.log_path + 'sysu_log/'
     test_mode = [1, 2]  # thermal to visible
-    pool_dim = 2048
+    pool_dim = 768
 elif dataset == 'regdb':
     data_path = '../Datasets/RegDB/'
     # data_path = '/home/guohangyu/data/datasets/RegDB'
     log_path = args.log_path + 'regdb_log/'
     test_mode = [2, 1]  # visible to thermal
-    pool_dim = 1024
+    pool_dim = 768
 elif dataset == 'llcm':
     data_path = '../Datasets/LLCM/'
     # data_path = '/home/guohangyu/data/datasets/LLCM/LLCM'
     log_path = args.log_path + 'llcm_log/'
     test_mode = [1, 2]  # [1, 2]: IR to VIS; [2, 1]: VIS to IR;
-    pool_dim = 2048
+    pool_dim = 768
 
 checkpoint_path = args.model_path
 
@@ -168,8 +168,6 @@ elif dataset == 'regdb':
 
 elif dataset == 'llcm':
     # training set
-    # import ipdb
-    # ipdb.set_trace()
     trainset = LLCMData(data_path, args.trial, transform=transform_llcm)
     # generate the idx of each person identity
     color_pos, thermal_pos = GenIdx(trainset.train_color_label, trainset.train_thermal_label)
@@ -202,15 +200,11 @@ print('  ------------------------------')
 print('Data Loading Time:\t {:.3f}'.format(time.time() - end))
 
 print('==> Building model..')
-# net = embed_net(n_class, dataset, arch=args.arch)
-net = vit_base_patch16_224_TransReID()
+net = vit_base_patch16_224_TransReID(n_class, dataset)
 
-
-print("load data finish")
 
 # 加载预训练模型的参数
-pretrained_dict = torch.load('/home/guohangyu/data/VIReID/DEENwithTransReID/DEEN/model/vit_base.pth')
-net.load_state_dict(pretrained_dict)
+net.load_param('/home/guohangyu/data/VIReID/DEENwithTransReID/DEEN/model/vit_base.pth')
 net.to(device)
 
 
@@ -273,23 +267,18 @@ def adjust_learning_rate(optimizer, epoch):
     return lr
 
 # #####################################################################
-def weights_init_kaiming(m):
-    classname = m.__class__.__name__
-    # print(classname)
-    if classname.find('Conv') != -1:
-        init.kaiming_normal_(m.weight.data, a=0, mode='fan_in')
-    elif classname.find('Linear') != -1:
-        init.kaiming_normal_(m.weight.data, a=0, mode='fan_out')
-        init.zeros_(m.bias.data)
-    elif classname.find('BatchNorm1d') != -1:
-        init.normal_(m.weight.data, 1.0, 0.01)
-        init.zeros_(m.bias.data)
+# def weights_init_kaiming(m):
+#     classname = m.__class__.__name__
+#     # print(classname)
+#     if classname.find('Conv') != -1:
+#         init.kaiming_normal_(m.weight.data, a=0, mode='fan_in')
+#     elif classname.find('Linear') != -1:
+#         init.kaiming_normal_(m.weight.data, a=0, mode='fan_out')
+#         init.zeros_(m.bias.data)
+#     elif classname.find('BatchNorm1d') != -1:
+#         init.normal_(m.weight.data, 1.0, 0.01)
+#         init.zeros_(m.bias.data)
 
-# BNNeck
-pool_dim = 2048
-bottleneck = nn.BatchNorm1d(pool_dim)
-bottleneck.bias.requires_grad_(False)  # no shift
-bottleneck.apply(weights_init_kaiming)
 
 def train(epoch):
 
@@ -318,16 +307,15 @@ def train(epoch):
         labels = Variable(labels.cuda())
         data_time.update(time.time() - end)
 
-        feat1 = net(input1)
-        feat2 = net(input2)
+        feat1, feat1_att, out1 = net(input1)
+        feat2, feat2_att, out2 = net(input2)
         # print(net.training)
         # print(net)
 
         feat = torch.cat((feat1, feat2), 0)
-        feat_att = bottleneck(feat)    
-        classifier = nn.Linear(pool_dim, n_class, bias=False)
-        out = classifier(feat_att)
-
+        feat_att = torch.cat((feat1_att, feat2_att), 0)
+        out = torch.cat((out1, out2), 0)
+      
         loss_id = criterion_id(out, labels)        
         loss_tri = criterion_tri(feat, labels)
         loss = loss_id + loss_tri 
@@ -344,15 +332,22 @@ def train(epoch):
         # measure elapsed time
         batch_time.update(time.time() - end)
         end = time.time()
+        # if batch_idx % 50 == 0:
+        #     print('Epoch: [{}][{}/{}] '
+        #           'Loss:{train_loss.val:.3f} '
+        #           'iLoss:{id_loss.val:.3f} '
+        #           'TLoss:{tri_loss.val:.3f} '
+        #           'CLoss:{cpm_loss.val:.3f} '
+        #           'OLoss:{ort_loss.val:.3f} '.format(
+        #         epoch, batch_idx, len(trainloader),
+        #         train_loss=train_loss, id_loss=id_loss, tri_loss=tri_loss, cpm_loss=cpm_loss, ort_loss=ort_loss))
         if batch_idx % 50 == 0:
             print('Epoch: [{}][{}/{}] '
                   'Loss:{train_loss.val:.3f} '
                   'iLoss:{id_loss.val:.3f} '
-                  'TLoss:{tri_loss.val:.3f} '
-                  'CLoss:{cpm_loss.val:.3f} '
-                  'OLoss:{ort_loss.val:.3f} '.format(
+                  'TLoss:{tri_loss.val:.3f} '.format(
                 epoch, batch_idx, len(trainloader),
-                train_loss=train_loss, id_loss=id_loss, tri_loss=tri_loss, cpm_loss=cpm_loss, ort_loss=ort_loss))
+                train_loss=train_loss, id_loss=id_loss, tri_loss=tri_loss))
 
     writer.add_scalar('total_loss', train_loss.avg, epoch)
     writer.add_scalar('id_loss', id_loss.avg, epoch)
@@ -367,15 +362,14 @@ def test(epoch):
     print('Extracting Gallery Feature...')
     start = time.time()
     ptr = 0
-    gall_feat = np.zeros((ngall, 2048))
-    gall_feat_att = np.zeros((ngall, 2048))
+    gall_feat = np.zeros((ngall, pool_dim))
+    gall_feat_att = np.zeros((ngall, pool_dim))
     with torch.no_grad():
         for batch_idx, (input, label) in enumerate(gall_loader):
             batch_num = input.size(0)
             input = Variable(input.cuda())
             # feat, feat_att = net(input, input, test_mode[0])
-            feat = net(input)
-            feat_att = bottleneck(feat)
+            feat, feat_att, out = net(input)
             gall_feat[ptr:ptr + batch_num, :] = feat.detach().cpu().numpy()
             gall_feat_att[ptr:ptr + batch_num, :] = feat_att.detach().cpu().numpy()
             ptr = ptr + batch_num
@@ -386,16 +380,15 @@ def test(epoch):
     print('Extracting Query Feature...')
     start = time.time()
     ptr = 0
-    query_feat = np.zeros((nquery, 2048))
+    query_feat = np.zeros((nquery, pool_dim))
     # feat和feat_att的区别是后者经过了BN层，而前者没有经过BN层
-    # query_feat_att = np.zeros((nquery, 2048))
+    query_feat_att = np.zeros((nquery, pool_dim))
     with torch.no_grad():
         for batch_idx, (input, label) in enumerate(query_loader):
             batch_num = input.size(0)
             input = Variable(input.cuda())
             # feat, feat_att = net(input, input, test_mode[1])
-            feat = net(input)
-            feat_att = bottleneck(feat)
+            feat, feat_att, out = net(input)
             query_feat[ptr:ptr + batch_num, :] = feat.detach().cpu().numpy()
             query_feat_att[ptr:ptr + batch_num, :] = feat_att.detach().cpu().numpy()
             ptr = ptr + batch_num
@@ -408,7 +401,7 @@ def test(epoch):
 
     # evaluation
     if dataset == 'regdb':
-        cmc, mAP, mINP      = eval_regdb(-distmat, query_label, gall_label)
+        cmc, mAP, mINP = eval_regdb(-distmat, query_label, gall_label)
         cmc_att, mAP_att, mINP_att  = eval_regdb(-distmat_att, query_label, gall_label)
     elif dataset == 'sysu':
         cmc, mAP, mINP = eval_sysu(-distmat, query_label, gall_label, query_cam, gall_cam)

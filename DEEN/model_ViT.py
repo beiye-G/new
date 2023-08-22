@@ -29,6 +29,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 # from torch._six import container_abcs
 import collections.abc as container_abcs
+from torch.nn import init
 
 
 # From PyTorch internals
@@ -298,17 +299,39 @@ class PatchEmbed_overlap(nn.Module):
         return x
 
 
+# #####################################################################
+def weights_init_kaiming(m):
+    classname = m.__class__.__name__
+    # print(classname)
+    if classname.find('Conv') != -1:
+        init.kaiming_normal_(m.weight.data, a=0, mode='fan_in')
+    elif classname.find('Linear') != -1:
+        init.kaiming_normal_(m.weight.data, a=0, mode='fan_out')
+        init.zeros_(m.bias.data)
+    elif classname.find('BatchNorm1d') != -1:
+        init.normal_(m.weight.data, 1.0, 0.01)
+        init.zeros_(m.bias.data)
+
+def weights_init_classifier(m):
+    classname = m.__class__.__name__
+    if classname.find('Linear') != -1:
+        init.normal_(m.weight.data, 0, 0.001)
+        if m.bias:
+            init.zeros_(m.bias.data)
+
+
 class TransReID(nn.Module):
     """ Transformer-based Object Re-Identification
     """
-    # def __init__(self, img_size=224, patch_size=16, stride_size=16, in_chans=3, num_classes=1000, embed_dim=768, depth=12,
-    #              num_heads=12, mlp_ratio=4., qkv_bias=False, qk_scale=None, drop_rate=0., attn_drop_rate=0., camera=0, view=0,
-    #              drop_path_rate=0., hybrid_backbone=None, norm_layer=nn.LayerNorm, local_feature=False, sie_xishu =1.0):
-    def __init__(self, img_size=224, patch_size=16, stride_size=16, in_chans=3, num_classes=0, embed_dim=768, depth=12,
-                 num_heads=12, mlp_ratio=4., qkv_bias=False, qk_scale=None, drop_rate=0., attn_drop_rate=0.,
-                 drop_path_rate=0., hybrid_backbone=None, norm_layer=nn.LayerNorm, local_feature=False):
+    def __init__(self, class_num, dataset, img_size=224, patch_size=16, stride_size=16, in_chans=3, num_classes=1000, embed_dim=768, depth=12,
+                 num_heads=12, mlp_ratio=4., qkv_bias=False, qk_scale=None, drop_rate=0., attn_drop_rate=0., camera=0, view=0,
+                 drop_path_rate=0., hybrid_backbone=None, norm_layer=nn.LayerNorm, local_feature=False, sie_xishu =1.0):
+    # def __init__(self, img_size=224, patch_size=16, stride_size=16, in_chans=3, num_classes=0, embed_dim=768, depth=12,
+    #              num_heads=12, mlp_ratio=4., qkv_bias=False, qk_scale=None, drop_rate=0., attn_drop_rate=0.,
+    #              drop_path_rate=0., hybrid_backbone=None, norm_layer=nn.LayerNorm, local_feature=False):
         super().__init__()
         self.num_classes = num_classes
+        self.dataset = dataset
         self.num_features = self.embed_dim = embed_dim  # num_features for consistency with other models
         self.local_feature = local_feature
         if hybrid_backbone is not None:
@@ -366,6 +389,23 @@ class TransReID(nn.Module):
 
         self.apply(self._init_weights)
 
+        # if self.dataset == 'regdb': # For regdb dataset, we remove the MFA3 block and layer4.
+        #     pool_dim = 1024
+        # else:
+        #     pool_dim = 2048
+
+        pool_dim = 768
+        # Bottleneck
+        self.bottleneck = nn.BatchNorm1d(pool_dim)
+        self.bottleneck.bias.requires_grad_(False)  # no shift
+        self.bottleneck.apply(weights_init_kaiming)
+
+        # Classifier
+        self.classifier = nn.Linear(pool_dim, class_num, bias=False)
+        self.classifier.apply(weights_init_classifier)
+
+        
+
     def _init_weights(self, m):
         if isinstance(m, nn.Linear):
             trunc_normal_(m.weight, std=.02)
@@ -417,8 +457,13 @@ class TransReID(nn.Module):
 
             x = self.norm(x)
 
+            x = x[:, 0]
+
+            x_att = self.bottleneck(x)
+            out = self.classifier(x_att)
+
             # 返回cls_token 
-            return x[:, 0]
+            return x, x_att, out
 
     # def forward(self, x, cam_label=None, view_label=None):
     #     x = self.forward_features(x, cam_label, view_label)
@@ -434,6 +479,8 @@ class TransReID(nn.Module):
         if 'state_dict' in param_dict:
             param_dict = param_dict['state_dict']
         for k, v in param_dict.items():
+            if 'fc' in k:
+                continue
             if 'head' in k or 'dist' in k:
                 continue
             if 'patch_embed.proj.weight' in k and len(v.shape) < 4:
@@ -470,9 +517,9 @@ def resize_pos_embed(posemb, posemb_new, hight, width):
     return posemb
 
 
-def vit_base_patch16_224_TransReID(img_size=(256, 128), stride_size=16, drop_rate=0.0, attn_drop_rate=0.0, drop_path_rate=0.1, camera=0, view=0,local_feature=False,sie_xishu=1.5, **kwargs):
+def vit_base_patch16_224_TransReID(class_num, dataset, img_size=(256, 128), stride_size=16, drop_rate=0.0, attn_drop_rate=0.0, drop_path_rate=0.1, camera=0, view=0,local_feature=False,sie_xishu=1.5, **kwargs):
     model = TransReID(
-        img_size=img_size, patch_size=16, stride_size=stride_size, embed_dim=768, depth=12, num_heads=12, mlp_ratio=4, qkv_bias=True,\
+        class_num=class_num, dataset=dataset, img_size=img_size, patch_size=16, stride_size=stride_size, embed_dim=768, depth=12, num_heads=12, mlp_ratio=4, qkv_bias=True,\
         camera=camera, view=view, drop_path_rate=drop_path_rate, drop_rate=drop_rate, attn_drop_rate=attn_drop_rate,
         norm_layer=partial(nn.LayerNorm, eps=1e-6),  sie_xishu=sie_xishu, local_feature=local_feature, **kwargs)
 

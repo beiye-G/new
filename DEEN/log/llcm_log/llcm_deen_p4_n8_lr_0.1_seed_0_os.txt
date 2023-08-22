@@ -1,5 +1,5 @@
 ==========
-Args:Namespace(arch='resnet50', batch_size=8, dataset='llcm', erasing_p=0.5, gpu='0', img_h=256, img_w=128, lambda_1=0.8, lambda_2=0.01, log_path='log/', lr=0.1, margin=0.3, mode='all', model_path='save_model/', num_pos=4, optim='sgd', resume='', save_epoch=20, seed=0, test_batch=4, test_only=False, trial=2, vis_log_path='log/vis_log/', workers=4)
+Args:Namespace(arch='resnet50', batch_size=8, dataset='llcm', erasing_p=0.5, gpu='1', img_h=256, img_w=128, lambda_1=0.8, lambda_2=0.01, log_path='log/', lr=0.1, margin=0.3, mode='all', model_path='save_model/', num_pos=4, optim='sgd', resume='', save_epoch=20, seed=0, test_batch=4, test_only=False, trial=2, vis_log_path='log/vis_log/', workers=4)
 ==========
 ==> Loading data..
 Dataset llcm statistics:
@@ -12,5 +12,59 @@ Dataset llcm statistics:
   query    |   351 |     7166
   gallery  |   351 |      484
   ------------------------------
-Data Loading Time:	 71.126
+Data Loading Time:	 73.124
 ==> Building model..
+using stride: 16, and patch number is num_y16 * num_x8
+using drop_out rate is : 0.0
+using attn_drop_out rate is : 0.0
+using drop_path rate is : 0.1
+load data finish
+Resized position embedding from size:torch.Size([1, 197, 768]) to size: torch.Size([1, 129, 768]) with height:16 width: 8
+==> Start Training...
+==> Preparing Data Loader...
+0
+[ 8094  8142  8180 ... 14781 14773 14771]
+[ 6692  6693  6677 ... 12178 12186 12184]
+Epoch: [0][0/529] Loss:19.153 iLoss:6.569 TLoss:12.584 CLoss:0.000 OLoss:0.000 
+Epoch: [0][50/529] Loss:11.710 iLoss:6.498 TLoss:5.212 CLoss:0.000 OLoss:0.000 
+Epoch: [0][100/529] Loss:9.696 iLoss:6.520 TLoss:3.175 CLoss:0.000 OLoss:0.000 
+Epoch: [0][150/529] Loss:8.777 iLoss:6.433 TLoss:2.344 CLoss:0.000 OLoss:0.000 
+Epoch: [0][200/529] Loss:8.409 iLoss:5.907 TLoss:2.502 CLoss:0.000 OLoss:0.000 
+Epoch: [0][250/529] Loss:7.248 iLoss:5.548 TLoss:1.700 CLoss:0.000 OLoss:0.000 
+Epoch: [0][300/529] Loss:7.294 iLoss:5.774 TLoss:1.520 CLoss:0.000 OLoss:0.000 
+Epoch: [0][350/529] Loss:7.555 iLoss:6.105 TLoss:1.450 CLoss:0.000 OLoss:0.000 
+Epoch: [0][400/529] Loss:7.358 iLoss:6.077 TLoss:1.280 CLoss:0.000 OLoss:0.000 
+Epoch: [0][450/529] Loss:7.755 iLoss:6.352 TLoss:1.404 CLoss:0.000 OLoss:0.000 
+Epoch: [0][500/529] Loss:6.785 iLoss:5.757 TLoss:1.029 CLoss:0.000 OLoss:0.000 
+==> Preparing Data Loader...
+1
+[9457 9456 9460 ... 3563 3568 3559]
+[7734 7750 7749 ... 2759 2772 2773]
+Epoch: [1][0/529] Loss:6.545 iLoss:5.484 TLoss:1.061 CLoss:0.000 OLoss:0.000 
+Epoch: [1][50/529] Loss:6.263 iLoss:5.232 TLoss:1.031 CLoss:0.000 OLoss:0.000 
+Epoch: [1][100/529] Loss:6.660 iLoss:5.820 TLoss:0.840 CLoss:0.000 OLoss:0.000 
+Epoch: [1][150/529] Loss:6.871 iLoss:6.005 TLoss:0.866 CLoss:0.000 OLoss:0.000 
+Epoch: [1][200/529] Loss:6.549 iLoss:5.655 TLoss:0.894 CLoss:0.000 OLoss:0.000 
+Epoch: [1][250/529] Loss:6.447 iLoss:5.709 TLoss:0.738 CLoss:0.000 OLoss:0.000 
+Epoch: [1][300/529] Loss:6.448 iLoss:5.563 TLoss:0.885 CLoss:0.000 OLoss:0.000 
+Epoch: [1][350/529] Loss:6.472 iLoss:5.689 TLoss:0.782 CLoss:0.000 OLoss:0.000 
+Epoch: [1][400/529] Loss:6.840 iLoss:6.051 TLoss:0.789 CLoss:0.000 OLoss:0.000 
+Epoch: [1][450/529] Loss:6.672 iLoss:5.943 TLoss:0.729 CLoss:0.000 OLoss:0.000 
+Epoch: [1][500/529] Loss:6.094 iLoss:5.341 TLoss:0.753 CLoss:0.000 OLoss:0.000 
+==> Preparing Data Loader...
+2
+[5479 5472 5480 ... 2954 2944 2951]
+[4342 4348 4356 ... 2173 2173 2164]
+Epoch: [2][0/529] Loss:6.689 iLoss:5.884 TLoss:0.806 CLoss:0.000 OLoss:0.000 
+Epoch: [2][50/529] Loss:5.731 iLoss:4.954 TLoss:0.777 CLoss:0.000 OLoss:0.000 
+Epoch: [2][100/529] Loss:6.627 iLoss:5.860 TLoss:0.767 CLoss:0.000 OLoss:0.000 
+Epoch: [2][150/529] Loss:6.205 iLoss:5.474 TLoss:0.731 CLoss:0.000 OLoss:0.000 
+Epoch: [2][200/529] Loss:6.499 iLoss:5.658 TLoss:0.841 CLoss:0.000 OLoss:0.000 
+Epoch: [2][250/529] Loss:6.455 iLoss:5.702 TLoss:0.753 CLoss:0.000 OLoss:0.000 
+Epoch: [2][300/529] Loss:6.303 iLoss:5.533 TLoss:0.770 CLoss:0.000 OLoss:0.000 
+Epoch: [2][350/529] Loss:6.103 iLoss:5.396 TLoss:0.707 CLoss:0.000 OLoss:0.000 
+Epoch: [2][400/529] Loss:5.897 iLoss:5.176 TLoss:0.722 CLoss:0.000 OLoss:0.000 
+Epoch: [2][450/529] Loss:5.956 iLoss:5.213 TLoss:0.743 CLoss:0.000 OLoss:0.000 
+Epoch: [2][500/529] Loss:6.270 iLoss:5.573 TLoss:0.697 CLoss:0.000 OLoss:0.000 
+Test Epoch: 2
+Extracting Gallery Feature...
