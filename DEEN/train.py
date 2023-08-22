@@ -395,11 +395,11 @@ def test(epoch):
     elif dataset == 'sysu':
         cmc, mAP, mINP = eval_sysu(-distmat, query_label, gall_label, query_cam, gall_cam)
         cmc_att, mAP_att, mINP_att = eval_sysu(-distmat_att, query_label, gall_label, query_cam, gall_cam)
-        cmc_all, mAP_all, mINP_all  = eval_regdb(-distmat_all, query_label, gall_label)
+        cmc_all, mAP_all, mINP_all = eval_sysu(-distmat_all, query_label, gall_label, query_cam, gall_cam)
     elif dataset == 'llcm':
         cmc, mAP, mINP = eval_llcm(-distmat, query_label, gall_label, query_cam, gall_cam)
         cmc_att, mAP_att, mINP_att = eval_llcm(-distmat_att, query_label, gall_label, query_cam, gall_cam)
-        cmc_all, mAP_all, mINP_all  = eval_regdb(-distmat_all, query_label, gall_label)
+        cmc_all, mAP_all, mINP_all  = eval_llcm(-distmat_all, query_label, gall_label, query_cam, gall_cam)
     print('Evaluation Time:\t {:.3f}'.format(time.time() - start))
 
     writer.add_scalar('rank1', cmc[0], epoch)

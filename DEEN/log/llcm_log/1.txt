@@ -1,0 +1,98 @@
+==========
+Args:Namespace(arch='resnet50', batch_size=6, dataset='llcm', erasing_p=0.5, gpu='0', img_h=256, img_w=128, lambda_1=0.8, lambda_2=0.01, log_path='log/', lr=0.1, margin=0.3, mode='all', model_path='save_model/', num_pos=4, optim='sgd', resume='', save_epoch=20, seed=0, test_batch=4, test_only=False, trial=2, vis_log_path='log/vis_log/', workers=4)
+==========
+==> Loading data..
+Dataset llcm statistics:
+  ------------------------------
+  subset   | # ids | # images
+  ------------------------------
+  visible  |   713 |    16946
+  thermal  |   713 |    13975
+  ------------------------------
+  query    |   351 |     7166
+  gallery  |   351 |      484
+  ------------------------------
+Data Loading Time:	 77.442
+==> Building model..
+using stride: 16, and patch number is num_y16 * num_x8
+using drop_out rate is : 0.0
+using attn_drop_out rate is : 0.0
+using drop_path rate is : 0.1
+Resized position embedding from size:torch.Size([1, 197, 768]) to size: torch.Size([1, 129, 768]) with height:16 width: 8
+==> Start Training...
+==> Preparing Data Loader...
+0
+[8094 8142 8180 ...  359  368  362]
+[6692 6693 6677 ...  190  196  201]
+Epoch: [0][0/706] Loss:18.435 iLoss:6.569 TLoss:11.866 
+Epoch: [0][50/706] Loss:11.758 iLoss:6.455 TLoss:5.303 
+Epoch: [0][100/706] Loss:9.344 iLoss:6.507 TLoss:2.837 
+Epoch: [0][150/706] Loss:8.529 iLoss:6.221 TLoss:2.308 
+Epoch: [0][200/706] Loss:8.134 iLoss:6.255 TLoss:1.879 
+Epoch: [0][250/706] Loss:7.504 iLoss:6.041 TLoss:1.463 
+Epoch: [0][300/706] Loss:7.627 iLoss:5.997 TLoss:1.630 
+Epoch: [0][350/706] Loss:6.831 iLoss:5.650 TLoss:1.182 
+Epoch: [0][400/706] Loss:7.009 iLoss:5.616 TLoss:1.392 
+Epoch: [0][450/706] Loss:7.085 iLoss:5.863 TLoss:1.222 
+Epoch: [0][500/706] Loss:6.607 iLoss:5.650 TLoss:0.957 
+Epoch: [0][550/706] Loss:6.966 iLoss:5.928 TLoss:1.038 
+Epoch: [0][600/706] Loss:7.263 iLoss:6.262 TLoss:1.001 
+Epoch: [0][650/706] Loss:7.338 iLoss:6.452 TLoss:0.886 
+Epoch: [0][700/706] Loss:6.887 iLoss:5.953 TLoss:0.934 
+==> Preparing Data Loader...
+1
+[ 4092  4102  4088 ... 10245 10242 10232]
+[3218 3206 3204 ... 8425 8420 8421]
+Epoch: [1][0/706] Loss:6.384 iLoss:5.549 TLoss:0.835 
+Epoch: [1][50/706] Loss:6.357 iLoss:5.608 TLoss:0.749 
+Epoch: [1][100/706] Loss:7.031 iLoss:6.125 TLoss:0.905 
+Epoch: [1][150/706] Loss:6.341 iLoss:5.618 TLoss:0.723 
+Epoch: [1][200/706] Loss:6.789 iLoss:5.831 TLoss:0.958 
+Epoch: [1][250/706] Loss:6.625 iLoss:5.822 TLoss:0.802 
+Epoch: [1][300/706] Loss:6.105 iLoss:5.353 TLoss:0.753 
+Epoch: [1][350/706] Loss:6.784 iLoss:5.908 TLoss:0.876 
+Epoch: [1][400/706] Loss:6.283 iLoss:5.569 TLoss:0.714 
+Epoch: [1][450/706] Loss:6.589 iLoss:5.803 TLoss:0.786 
+Epoch: [1][500/706] Loss:6.724 iLoss:5.976 TLoss:0.748 
+Epoch: [1][550/706] Loss:6.033 iLoss:5.428 TLoss:0.605 
+Epoch: [1][600/706] Loss:6.351 iLoss:5.410 TLoss:0.941 
+Epoch: [1][650/706] Loss:6.121 iLoss:5.485 TLoss:0.636 
+Epoch: [1][700/706] Loss:6.146 iLoss:5.490 TLoss:0.656 
+==> Preparing Data Loader...
+2
+[2250 2258 2253 ...  803  797  795]
+[1588 1582 1589 ...  539  537  536]
+Epoch: [2][0/706] Loss:5.791 iLoss:5.114 TLoss:0.678 
+Epoch: [2][50/706] Loss:6.515 iLoss:5.808 TLoss:0.707 
+Epoch: [2][100/706] Loss:6.214 iLoss:5.482 TLoss:0.731 
+Epoch: [2][150/706] Loss:6.375 iLoss:5.726 TLoss:0.649 
+Epoch: [2][200/706] Loss:6.558 iLoss:5.696 TLoss:0.862 
+Epoch: [2][250/706] Loss:5.923 iLoss:5.239 TLoss:0.684 
+Epoch: [2][300/706] Loss:6.667 iLoss:5.924 TLoss:0.743 
+Epoch: [2][350/706] Loss:5.202 iLoss:4.541 TLoss:0.662 
+Epoch: [2][400/706] Loss:5.967 iLoss:5.304 TLoss:0.663 
+Epoch: [2][450/706] Loss:5.243 iLoss:4.603 TLoss:0.640 
+Epoch: [2][500/706] Loss:6.001 iLoss:5.331 TLoss:0.670 
+Epoch: [2][550/706] Loss:6.085 iLoss:5.381 TLoss:0.704 
+Epoch: [2][600/706] Loss:6.100 iLoss:5.463 TLoss:0.637 
+Epoch: [2][650/706] Loss:5.343 iLoss:4.713 TLoss:0.630 
+Epoch: [2][700/706] Loss:5.641 iLoss:5.013 TLoss:0.628 
+Test Epoch: 2
+Extracting Gallery Feature...
+Extracting Time:	 2.065
+Extracting Query Feature...
+Extracting Time:	 20.556
+Evaluation Time:	 28.085
+POOL:   Rank-1: 0.27% | Rank-5: 1.24% | Rank-10: 2.09%| Rank-20: 3.94%| mAP: 1.30%| mINP: 1.15%
+POOL:   Rank-1: 1.48% | Rank-5: 5.29% | Rank-10: 9.29%| Rank-20: 16.20%| mAP: 4.16%| mINP: 3.77%
+POOL:   Rank-1: 1.52% | Rank-5: 5.32% | Rank-10: 9.32%| Rank-20: 16.19%| mAP: 4.19%| mINP: 3.79%
+==> Preparing Data Loader...
+3
+[6928 6935 6933 ... 3543 3552 3554]
+[5636 5631 5633 ... 2750 2756 2747]
+Epoch: [3][0/706] Loss:5.602 iLoss:4.971 TLoss:0.631 
+Epoch: [3][50/706] Loss:6.214 iLoss:5.578 TLoss:0.636 
+Epoch: [3][100/706] Loss:5.458 iLoss:4.789 TLoss:0.670 
+Epoch: [3][150/706] Loss:4.367 iLoss:3.803 TLoss:0.564 
+Epoch: [3][200/706] Loss:5.981 iLoss:5.318 TLoss:0.663 
+Epoch: [3][250/706] Loss:5.083 iLoss:4.496 TLoss:0.587 

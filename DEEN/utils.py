@@ -4,6 +4,7 @@ from torch.utils.data.sampler import Sampler
 import sys
 import os.path as osp
 import torch
+from datetime import datetime
 
 def load_data(input_data_path ):
     with open(input_data_path) as f:
@@ -139,10 +140,25 @@ class Logger(object):
     def __exit__(self, *args):
         self.close()
 
+    # def write(self, msg):
+    #     self.console.write(msg)
+    #     if self.file is not None:
+    #         self.file.write(msg)
+
     def write(self, msg):
-        self.console.write(msg)
+        # 获取当前时间并将其格式化为字符串
+        now = datetime.now()
+        timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
+
+        # 将时间和消息写入控制台
+        console_msg = f"[{timestamp}] {msg}"
+        self.console.write(console_msg)
+
+        # 如果文件对象存在，则将时间和消息写入文件
         if self.file is not None:
-            self.file.write(msg)
+            file_msg = f"[{timestamp}] {msg}"
+            self.file.write(file_msg)
+
 
     def flush(self):
         self.console.flush()

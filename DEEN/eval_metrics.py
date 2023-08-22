@@ -89,7 +89,7 @@ def eval_llcm(distmat, q_pids, g_pids, q_camids, g_camids, max_rank = 20):
         tmp_cmc = np.asarray(tmp_cmc) * orig_cmc 
         # 计算每个query的AP
         AP = tmp_cmc.sum() / num_rel
-        print("AP:{}".format(AP))
+        # print("AP:{}".format(AP))
         all_AP.append(AP)
 
     assert num_valid_q > 0, "Error: all query identities do not appear in gallery"
