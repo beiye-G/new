@@ -266,19 +266,6 @@ def adjust_learning_rate(optimizer, epoch):
  
     return lr
 
-# #####################################################################
-# def weights_init_kaiming(m):
-#     classname = m.__class__.__name__
-#     # print(classname)
-#     if classname.find('Conv') != -1:
-#         init.kaiming_normal_(m.weight.data, a=0, mode='fan_in')
-#     elif classname.find('Linear') != -1:
-#         init.kaiming_normal_(m.weight.data, a=0, mode='fan_out')
-#         init.zeros_(m.bias.data)
-#     elif classname.find('BatchNorm1d') != -1:
-#         init.normal_(m.weight.data, 1.0, 0.01)
-#         init.zeros_(m.bias.data)
-
 
 def train(epoch):
 
@@ -398,17 +385,21 @@ def test(epoch):
     # compute the similarity
     distmat = np.matmul(query_feat, np.transpose(gall_feat))
     distmat_att = np.matmul(query_feat_att, np.transpose(gall_feat_att))
+    distmat_all = distmat + distmat_att
 
     # evaluation
     if dataset == 'regdb':
         cmc, mAP, mINP = eval_regdb(-distmat, query_label, gall_label)
         cmc_att, mAP_att, mINP_att  = eval_regdb(-distmat_att, query_label, gall_label)
+        cmc_all, mAP_all, mINP_all  = eval_regdb(-distmat_all, query_label, gall_label)
     elif dataset == 'sysu':
         cmc, mAP, mINP = eval_sysu(-distmat, query_label, gall_label, query_cam, gall_cam)
         cmc_att, mAP_att, mINP_att = eval_sysu(-distmat_att, query_label, gall_label, query_cam, gall_cam)
+        cmc_all, mAP_all, mINP_all  = eval_regdb(-distmat_all, query_label, gall_label)
     elif dataset == 'llcm':
         cmc, mAP, mINP = eval_llcm(-distmat, query_label, gall_label, query_cam, gall_cam)
         cmc_att, mAP_att, mINP_att = eval_llcm(-distmat_att, query_label, gall_label, query_cam, gall_cam)
+        cmc_all, mAP_all, mINP_all  = eval_regdb(-distmat_all, query_label, gall_label)
     print('Evaluation Time:\t {:.3f}'.format(time.time() - start))
 
     writer.add_scalar('rank1', cmc[0], epoch)
@@ -417,7 +408,7 @@ def test(epoch):
     writer.add_scalar('rank1_att', cmc_att[0], epoch)
     writer.add_scalar('mAP_att', mAP_att, epoch)
     writer.add_scalar('mINP_att', mINP_att, epoch)
-    return cmc, mAP, mINP, cmc_att, mAP_att, mINP_att
+    return cmc, mAP, mINP, cmc_att, mAP_att, mINP_att, cmc_all, mAP_all, mINP_all
 
 
 # training
@@ -448,16 +439,16 @@ for epoch in range(start_epoch, 151 - start_epoch):
         print('Test Epoch: {}'.format(epoch))
     
         # testing
-        cmc, mAP, mINP, cmc_att, mAP_att, mINP_att = test(epoch)
+        cmc, mAP, mINP, cmc_att, mAP_att, mINP_att, cmc_all, mAP_all, mINP_all = test(epoch)
         # save model
-        if cmc_att[0] > best_acc:  # not the real best for sysu-mm01
-            best_acc = cmc_att[0]
+        if cmc_all[0] > best_acc:  # not the real best for sysu-mm01
+            best_acc = cmc_all[0]
             best_epoch = epoch
             state = {
                 'net': net.state_dict(),
-                'cmc': cmc_att,
-                'mAP': mAP_att,
-                'mINP': mINP_att,
+                'cmc': cmc_all,
+                'mAP': mAP_all,
+                'mINP': mINP_all,
                 'epoch': epoch,
             }
             torch.save(state, checkpoint_path + suffix + '_best.t')
@@ -466,14 +457,16 @@ for epoch in range(start_epoch, 151 - start_epoch):
         if epoch > 10 and epoch % args.save_epoch == 0:
             state = {
                 'net': net.state_dict(),
-                'cmc': cmc,
-                'mAP': mAP,
+                'cmc': cmc_all,
+                'mAP': mAP_all,
+                'mINP': mINP,
                 'epoch': epoch,
             }
             torch.save(state, checkpoint_path + suffix + '_epoch_{}.t'.format(epoch))
     
         print('POOL:   Rank-1: {:.2%} | Rank-5: {:.2%} | Rank-10: {:.2%}| Rank-20: {:.2%}| mAP: {:.2%}| mINP: {:.2%}'.format(
             cmc[0], cmc[4], cmc[9], cmc[19], mAP, mINP))
-        print('FC:   Rank-1: {:.2%} | Rank-5: {:.2%} | Rank-10: {:.2%}| Rank-20: {:.2%}| mAP: {:.2%}| mINP: {:.2%}'.format(
+        print('POOL:   Rank-1: {:.2%} | Rank-5: {:.2%} | Rank-10: {:.2%}| Rank-20: {:.2%}| mAP: {:.2%}| mINP: {:.2%}'.format(
             cmc_att[0], cmc_att[4], cmc_att[9], cmc_att[19], mAP_att, mINP_att))
-        print('Best Epoch [{}]'.format(best_epoch))
+        print('POOL:   Rank-1: {:.2%} | Rank-5: {:.2%} | Rank-10: {:.2%}| Rank-20: {:.2%}| mAP: {:.2%}| mINP: {:.2%}'.format(
+            cmc_all[0], cmc_all[4], cmc_all[9], cmc_all[19], mAP_all, mINP_all))
