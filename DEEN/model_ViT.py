@@ -474,6 +474,7 @@ class TransReID(nn.Module):
 
     def load_param(self, model_path):
         param_dict = torch.load(model_path, map_location='cpu')
+        count = 0
         if 'model' in param_dict:
             param_dict = param_dict['model']
         if 'state_dict' in param_dict:
@@ -495,10 +496,11 @@ class TransReID(nn.Module):
                 v = resize_pos_embed(v, self.pos_embed, self.patch_embed.num_y, self.patch_embed.num_x)
             try:
                 self.state_dict()[k].copy_(v)
+                count += 1
             except:
                 print('===========================ERROR=========================')
                 print('shape do not match in k :{}: param_dict{} vs self.state_dict(){}'.format(k, v.shape, self.state_dict()[k].shape))
-
+            print('Load %d / %d layers.'%(count,len(self.state_dict().keys())))
 
 def resize_pos_embed(posemb, posemb_new, hight, width):
     # Rescale the grid of position embeddings when loading from state_dict. Adapted from

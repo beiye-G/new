@@ -22,7 +22,7 @@ from random_erasing import RandomErasing
 
 parser = argparse.ArgumentParser(description='PyTorch Cross-Modality Training')
 parser.add_argument('--dataset', default='sysu', help='dataset name: regdb or sysu]')
-parser.add_argument('--lr', default=0.1, type=float, help='learning rate, 0.00035 for adam')
+parser.add_argument('--lr', default=0.01, type=float, help='learning rate, 0.00035 for adam')
 parser.add_argument('--optim', default='sgd', type=str, help='optimizer')
 parser.add_argument('--arch', default='resnet50', type=str, help='network baseline:resnet18 or resnet50')
 parser.add_argument('--resume', '-r', default='', type=str, help='resume from checkpoint')
@@ -131,12 +131,12 @@ transform_regdb = transforms.Compose([
 transform_llcm = transforms.Compose([
     transforms.ToPILImage(),
     transforms.Pad(10),
-    transforms.RandomGrayscale(p=0.5),
+    # transforms.RandomGrayscale(p=0.5),
     transforms.RandomCrop((args.img_h, args.img_w)),
     transforms.RandomHorizontalFlip(),
     transforms.ToTensor(),
     normalize,
-    RandomErasing(probability = args.erasing_p, sl = 0.02, sh = 0.4, r1 = 0.3, mean=[0.485, 0.456, 0.406]),
+    # RandomErasing(probability = args.erasing_p, sl = 0.02, sh = 0.4, r1 = 0.3, mean=[0.485, 0.456, 0.406]),
 ])
 transform_test = transforms.Compose([
     transforms.ToPILImage(),
@@ -470,3 +470,4 @@ for epoch in range(start_epoch, 151 - start_epoch):
             cmc_att[0], cmc_att[4], cmc_att[9], cmc_att[19], mAP_att, mINP_att))
         print('POOL:   Rank-1: {:.2%} | Rank-5: {:.2%} | Rank-10: {:.2%}| Rank-20: {:.2%}| mAP: {:.2%}| mINP: {:.2%}'.format(
             cmc_all[0], cmc_all[4], cmc_all[9], cmc_all[19], mAP_all, mINP_all))
+        print('Best Epoch [{}]'.format(best_epoch))
