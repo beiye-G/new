@@ -10,6 +10,7 @@ from data_loader import SYSUData, RegDBData, LLCMData, TestData
 from data_manager import *
 from eval_metrics import eval_sysu, eval_regdb, eval_llcm
 from model import embed_net
+from model_ViT import TransReID, vit_base_patch16_224_TransReID, vit_small_patch16_224_TransReID, deit_small_patch16_224_TransReID
 from utils import *
 import pdb
 import scipy.io
@@ -36,7 +37,7 @@ parser.add_argument('--margin', default=0.3, type=float, metavar='margin', help=
 parser.add_argument('--num_pos', default=4, type=int, help='num of pos per identity in each modality')
 parser.add_argument('--trial', default=1, type=int, metavar='t', help='trial (only for RegDB dataset)')
 parser.add_argument('--seed', default=0, type=int, metavar='t', help='random seed')
-parser.add_argument('--gpu', default='1', type=str, help='gpu device ids for CUDA_VISIBLE_DEVICES')
+parser.add_argument('--gpu', default='0', type=str, help='gpu device ids for CUDA_VISIBLE_DEVICES')
 parser.add_argument('--mode', default='all', type=str, help='all or indoor for sysu') # SYSU-MM01
 parser.add_argument('--tvsearch', default=True, help='whether thermal to visible search on RegDB') # RegDB
 
@@ -49,19 +50,19 @@ if dataset == 'sysu':
     # data_path = '/home/guohangyu/data/datasets/SYSU-MM01'
     n_class = 395
     test_mode = [1, 2]
-    pool_dim = 2048
+    pool_dim = 768
 elif dataset =='regdb':
     data_path = '../Datasets/RegDB/'
     # data_path = '/home/guohangyu/data/datasets/RegDB'
     n_class = 206
     test_mode = [2, 1]
-    pool_dim = 1024
+    pool_dim = 768
 elif dataset =='llcm':
     data_path = '../Datasets/LLCM/'
     # data_path = '/home/guohangyu/data/datasets/LLCM'
     n_class = 713
     test_mode = [1, 2]  # [1, 2]: IR to VIS; [2, 1]: VIS to IR;
-    pool_dim = 2048
+    pool_dim = 768
  
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 best_acc = 0  # best test accuracy
@@ -110,12 +111,8 @@ def extract_gall_feat(gall_loader):
     print ('Extracting Gallery Feature...')
     start = time.time()
     ptr = 0
-    gall_feat1 = np.zeros((ngall, pool_dim))
-    gall_feat2 = np.zeros((ngall, pool_dim))
-    gall_feat3 = np.zeros((ngall, pool_dim))
-    gall_feat4 = np.zeros((ngall, pool_dim))
-    gall_feat5 = np.zeros((ngall, pool_dim))
-    gall_feat6 = np.zeros((ngall, pool_dim))
+    gall_feat = np.zeros((ngall, pool_dim))
+    gall_feat_att = np.zeros((ngall, pool_dim))
     with torch.no_grad():
         for batch_idx, (input, label) in enumerate(gall_loader):
             # import ipdb
@@ -183,8 +180,6 @@ if dataset == 'llcm':
             print('==> no checkpoint found at {}'.format(args.resume))
 
     # testing set
-    # 获取测试集的query和gallery
-
     query_img, query_label, query_cam = process_query_llcm(data_path, mode=test_mode[1])
     gall_img, gall_label, gall_cam = process_gallery_llcm(data_path, mode=test_mode[0], trial=0)
 
@@ -198,13 +193,10 @@ if dataset == 'llcm':
     print("  gallery  | {:5d} | {:8d}".format(len(np.unique(gall_label)), ngall))
     print("  ------------------------------")
 
-    # 将query 数据预处理
     queryset = TestData(query_img, query_label, transform=transform_test, img_size=(args.img_w, args.img_h))
-    # 加载query 数据
     query_loader = data.DataLoader(queryset, batch_size=args.test_batch, shuffle=False, num_workers=4)
     print('Data Loading Time:\t {:.3f}'.format(time.time() - end))
 
-    # 提取querry的特征
     query_feat1, query_feat2, query_feat3, query_feat4, query_feat5, query_feat6 = extract_query_feat(query_loader)
     for trial in range(10):
         gall_img, gall_label, gall_cam = process_gallery_llcm(data_path, mode=test_mode[0], trial=trial)
@@ -215,59 +207,33 @@ if dataset == 'llcm':
         gall_feat1, gall_feat2, gall_feat3, gall_feat4, gall_feat5, gall_feat6 = extract_gall_feat(trial_gall_loader)
 
         # fc feature
-        # if test_mode == [1, 2]:
-        #     # 计算query和gallery之间的距离
-        #     distmat1 = np.matmul(query_feat1, np.transpose(gall_feat1))
-        #     distmat2 = np.matmul(query_feat2, np.transpose(gall_feat2))
-        #     distmat3 = np.matmul(query_feat3, np.transpose(gall_feat3))
-        #     distmat4 = np.matmul(query_feat4, np.transpose(gall_feat4))
-        #     distmat5 = np.matmul(query_feat5, np.transpose(gall_feat5))
-        #     distmat6 = np.matmul(query_feat6, np.transpose(gall_feat6))
-        #     a = 0.1
-        #     distmat7 = distmat1 + distmat3 + distmat5 + distmat2 + distmat4 + distmat6
-        #     distmat8 = a * (distmat1 + distmat3 + distmat5) + (1 - a) * (distmat2 + distmat4 + distmat6)
+        if test_mode == [1, 2]:
+            distmat1 = np.matmul(query_feat1, np.transpose(gall_feat1))
+            distmat2 = np.matmul(query_feat2, np.transpose(gall_feat2))
+            distmat3 = np.matmul(query_feat3, np.transpose(gall_feat3))
+            distmat4 = np.matmul(query_feat4, np.transpose(gall_feat4))
+            distmat5 = np.matmul(query_feat5, np.transpose(gall_feat5))
+            distmat6 = np.matmul(query_feat6, np.transpose(gall_feat6))
+            a = 0.1
+            distmat7 = distmat1 + distmat3 + distmat5 + distmat2 + distmat4 + distmat6
+            distmat8 = a * (distmat1 + distmat3 + distmat5) + (1 - a) * (distmat2 + distmat4 + distmat6)
 
-        #     # 有做修改，补充了query_img、gall_img和test_mode！！！！！！            
-        #     # cmc7, mAP7, mINP7 = eval_llcm(-distmat7, query_label, gall_label, query_cam, gall_cam)
-        #     # cmc8, mAP8, mINP8 = eval_llcm(-distmat8, query_label, gall_label, query_cam, gall_cam)             
-        #     cmc7, mAP7, mINP7 = eval_llcm(-distmat7, query_label, gall_label, query_cam, gall_cam, query_img, gall_img, test_mode)
-        #     cmc8, mAP8, mINP8 = eval_llcm(-distmat8, query_label, gall_label, query_cam, gall_cam, query_img, gall_img, test_mode)
-        # # 这里没有多此一举吗？？？？？？？？？？？ 不会导致query和gallery的顺序不一吗？？？
-        # else:
-        #     distmat1 = np.matmul(gall_feat1, np.transpose(query_feat1))
-        #     distmat2 = np.matmul(gall_feat2, np.transpose(query_feat2))
-        #     distmat3 = np.matmul(gall_feat3, np.transpose(query_feat3))
-        #     distmat4 = np.matmul(gall_feat4, np.transpose(query_feat4))
-        #     distmat5 = np.matmul(gall_feat5, np.transpose(query_feat5))
-        #     distmat6 = np.matmul(gall_feat6, np.transpose(query_feat6))
-        #     a = 0.1
-        #     distmat7 = distmat1 + distmat3 + distmat5 + distmat2 + distmat4 + distmat6
-        #     distmat8 = a * (distmat1 + distmat3 + distmat5) + (1 - a) * (distmat2 + distmat4 + distmat6)
+            cmc7, mAP7, mINP7 = eval_llcm(-distmat7, query_label, gall_label, query_cam, gall_cam)
+            cmc8, mAP8, mINP8 = eval_llcm(-distmat8, query_label, gall_label, query_cam, gall_cam)
+
+        else:
+            distmat1 = np.matmul(gall_feat1, np.transpose(query_feat1))
+            distmat2 = np.matmul(gall_feat2, np.transpose(query_feat2))
+            distmat3 = np.matmul(gall_feat3, np.transpose(query_feat3))
+            distmat4 = np.matmul(gall_feat4, np.transpose(query_feat4))
+            distmat5 = np.matmul(gall_feat5, np.transpose(query_feat5))
+            distmat6 = np.matmul(gall_feat6, np.transpose(query_feat6))
+            a = 0.1
+            distmat7 = distmat1 + distmat3 + distmat5 + distmat2 + distmat4 + distmat6
+            distmat8 = a * (distmat1 + distmat3 + distmat5) + (1 - a) * (distmat2 + distmat4 + distmat6)
             
-        #     # 有做修改，补充了query_img、gall_img和test_mode！！！！！！            
-        #     # cmc7, mAP7, mINP7 = eval_llcm(-distmat7, query_label, gall_label, query_cam, gall_cam)
-        #     # cmc8, mAP8, mINP8 = eval_llcm(-distmat8, query_label, gall_label, query_cam, gall_cam)       
-        #     cmc7, mAP7, mINP7 = eval_llcm(-distmat7, gall_label, query_label, gall_cam, query_cam, query_img, gall_img, test_mode)
-        #     cmc8, mAP8, mINP8 = eval_llcm(-distmat8, gall_label, query_label, gall_cam, query_cam, query_img, gall_img, test_mode)
-        
-        # =========================修改申明=========================
-        # 个人觉得，按照上面作者给出的方法，会出现distmat的维度颠倒，q_ids、g_ids、q_camids、g_camids的顺序不一致的情况
-        distmat1 = np.matmul(query_feat1, np.transpose(gall_feat1))
-        distmat2 = np.matmul(query_feat2, np.transpose(gall_feat2))
-        distmat3 = np.matmul(query_feat3, np.transpose(gall_feat3))
-        distmat4 = np.matmul(query_feat4, np.transpose(gall_feat4))
-        distmat5 = np.matmul(query_feat5, np.transpose(gall_feat5))
-        distmat6 = np.matmul(query_feat6, np.transpose(gall_feat6))
-        a = 0.1
-        distmat7 = distmat1 + distmat3 + distmat5 + distmat2 + distmat4 + distmat6
-        distmat8 = a * (distmat1 + distmat3 + distmat5) + (1 - a) * (distmat2 + distmat4 + distmat6)
-
-        # 有做修改，补充了query_img、gall_img和test_mode！！！！！！            
-        # cmc7, mAP7, mINP7 = eval_llcm(-distmat7, query_label, gall_label, query_cam, gall_cam)
-        # cmc8, mAP8, mINP8 = eval_llcm(-distmat8, query_label, gall_label, query_cam, gall_cam)             
-        cmc7, mAP7, mINP7 = eval_llcm(-distmat7, query_label, gall_label, query_cam, gall_cam, query_img, gall_img, test_mode)
-        cmc8, mAP8, mINP8 = eval_llcm(-distmat8, query_label, gall_label, query_cam, gall_cam, query_img, gall_img, test_mode)
-
+            cmc7, mAP7, mINP7 = eval_llcm(-distmat7, query_label, gall_label, query_cam, gall_cam)
+            cmc8, mAP8, mINP8 = eval_llcm(-distmat8, query_label, gall_label, query_cam, gall_cam)       
 
         if trial == 0:
             all_cmc7 = cmc7

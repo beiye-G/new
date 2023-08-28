@@ -133,12 +133,16 @@ transform_llcm = transforms.Compose([
     transforms.ToPILImage(),
     transforms.Pad(10),
     # transforms.RandomGrayscale(p=0.5),
+<<<<<<< HEAD
     # transforms.RandomCrop((args.img_h, args.img_w)),
     transforms.Resize((args.img_h, args.img_w)),
+=======
+    transforms.RandomCrop((args.img_h, args.img_w)),
+>>>>>>> 29d6827b63d280c3a914839346804bc0575ac1d7
     transforms.RandomHorizontalFlip(),
     transforms.ToTensor(),
     normalize,
-    RandomErasing(probability = args.erasing_p, sl = 0.02, sh = 0.4, r1 = 0.3, mean=[0.485, 0.456, 0.406]),
+    # RandomErasing(probability = args.erasing_p, sl = 0.02, sh = 0.4, r1 = 0.3, mean=[0.485, 0.456, 0.406]),
 ])
 transform_test = transforms.Compose([
     transforms.ToPILImage(),
