@@ -383,7 +383,7 @@ class TransReID(nn.Module):
         self.norm = norm_layer(embed_dim)
 
         # Classifier head
-        self.fc = nn.Linear(embed_dim, num_classes) if num_classes > 0 else nn.Identity()
+        # self.fc = nn.Linear(embed_dim, num_classes) if num_classes > 0 else nn.Identity()
         trunc_normal_(self.cls_token, std=.02)
         trunc_normal_(self.pos_embed, std=.02)
 
@@ -474,13 +474,14 @@ class TransReID(nn.Module):
 
     def load_param(self, model_path):
         param_dict = torch.load(model_path, map_location='cpu')
+        count = 0
         if 'model' in param_dict:
             param_dict = param_dict['model']
         if 'state_dict' in param_dict:
             param_dict = param_dict['state_dict']
         for k, v in param_dict.items():
-            if 'fc' in k:
-                continue
+            # if 'fc' in k:
+            #     continue
             if 'head' in k or 'dist' in k:
                 continue
             if 'patch_embed.proj.weight' in k and len(v.shape) < 4:
@@ -495,10 +496,13 @@ class TransReID(nn.Module):
                 v = resize_pos_embed(v, self.pos_embed, self.patch_embed.num_y, self.patch_embed.num_x)
             try:
                 self.state_dict()[k].copy_(v)
+                count += 1
             except:
                 print('===========================ERROR=========================')
                 print('shape do not match in k :{}: param_dict{} vs self.state_dict(){}'.format(k, v.shape, self.state_dict()[k].shape))
-
+            print('Load %d / %d layers.'%(count,len(self.state_dict().keys())))
+            print(len(param_dict))
+            print(param_dict.keys())
 
 def resize_pos_embed(posemb, posemb_new, hight, width):
     # Rescale the grid of position embeddings when loading from state_dict. Adapted from

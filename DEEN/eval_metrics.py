@@ -169,7 +169,7 @@ def eval_sysu(distmat, q_pids, g_pids, q_camids, g_camids, max_rank = 20):
         tmp_cmc = [x / (i+1.) for i, x in enumerate(tmp_cmc)]
         tmp_cmc = np.asarray(tmp_cmc) * orig_cmc
         AP = tmp_cmc.sum() / num_rel
-        print(AP)
+        # print(AP)
         all_AP.append(AP)
 
     assert num_valid_q > 0, "Error: all query identities do not appear in gallery"
