@@ -346,6 +346,8 @@ class TransReID(nn.Module):
 
         self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
         self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, embed_dim))
+        self.inf_modality_embed = nn.Parameter(torch.zeros(1, num_patches, embed_dim))
+        self.vis_modality_embed = nn.Parameter(torch.zeros(1, num_patches, embed_dim))
         
         # self.cam_num = camera
         # self.view_num = view
@@ -386,6 +388,9 @@ class TransReID(nn.Module):
         # self.fc = nn.Linear(embed_dim, num_classes) if num_classes > 0 else nn.Identity()
         trunc_normal_(self.cls_token, std=.02)
         trunc_normal_(self.pos_embed, std=.02)
+        trunc_normal_(self.inf_modality_embed, std=.02)
+        trunc_normal_(self.vis_modality_embed, std=.02)
+
 
         self.apply(self._init_weights)
 
@@ -427,10 +432,15 @@ class TransReID(nn.Module):
         self.fc = nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
 
     # def forward_features(self, x, camera_id, view_id):
-    def forward_features(self, x):
+    def forward_features(self, x, model):
         B = x.shape[0]
         x = self.patch_embed(x)
-
+        
+        if model == 1:
+            x = x + self.vis_modality_embed
+        elif model == 2:
+            x = x + self.inf_modality_embed
+            
         cls_tokens = self.cls_token.expand(B, -1, -1)  # stole cls_tokens impl from Phil Wang, thanks
         x = torch.cat((cls_tokens, x), dim=1)
 
@@ -443,6 +453,7 @@ class TransReID(nn.Module):
         # else:
         #     x = x + self.pos_embed
         x = x + self.pos_embed
+
 
         x = self.pos_drop(x)
 
@@ -468,8 +479,8 @@ class TransReID(nn.Module):
     # def forward(self, x, cam_label=None, view_label=None):
     #     x = self.forward_features(x, cam_label, view_label)
     #     return x
-    def forward(self, x):
-        x = self.forward_features(x)
+    def forward(self, x, model):
+        x = self.forward_features(x, model)
         return x
 
     def load_param(self, model_path):
@@ -521,7 +532,7 @@ def resize_pos_embed(posemb, posemb_new, hight, width):
     return posemb
 
 
-def vit_base_patch16_224_TransReID(class_num, dataset, img_size=(256, 128), stride_size=16, drop_rate=0.0, attn_drop_rate=0.0, drop_path_rate=0.1, camera=0, view=0,local_feature=False,sie_xishu=1.5, **kwargs):
+def vit_base_patch16_224_TransReID(class_num, dataset, img_size=(256, 128), stride_size=8, drop_rate=0.0, attn_drop_rate=0.0, drop_path_rate=0.1, camera=0, view=0,local_feature=False,sie_xishu=1.5, **kwargs):
     model = TransReID(
         class_num=class_num, dataset=dataset, img_size=img_size, patch_size=16, stride_size=stride_size, embed_dim=768, depth=12, num_heads=12, mlp_ratio=4, qkv_bias=True,\
         camera=camera, view=view, drop_path_rate=drop_path_rate, drop_rate=drop_rate, attn_drop_rate=attn_drop_rate,

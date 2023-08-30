@@ -13,10 +13,15 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "env": {
-                "CUDA_VISIBLE_DEVICES": "0"
+                "CUDA_VISIBLE_DEVICES": "7"
             },
-            "args": ["--dataset", "llcm", "--resume", "llcm_deen_p4_n6_lr_0.1_seed_0_best.t"],
-            "cwd": "/home/guohangyu/data/VIReID/DEEN/DEEN"
+            "args": [
+                "--dataset",
+                "llcm",
+                "--resume",
+                "llcm_deen_p4_n6_lr_0.1_seed_0_best.t"
+            ],
+            "cwd": "/home/guohangyu/data/VIReID/DEENwithTransReID_bak/DEEN"
         }
     ]
 }

@@ -15,6 +15,7 @@ from data_manager import *
 from eval_metrics import eval_sysu, eval_regdb, eval_llcm
 from model import embed_net
 from model_ViT import TransReID, vit_base_patch16_224_TransReID, vit_small_patch16_224_TransReID, deit_small_patch16_224_TransReID
+from model_ViT_SEP import TransReID_SEP, vit_base_patch16_224_TransReID_SEP, vit_small_patch16_224_TransReID_SEP, deit_small_patch16_224_TransReID_SEP
 from utils import *
 from loss import OriTripletLoss, CPMLoss
 from tensorboardX import SummaryWriter
@@ -23,7 +24,7 @@ from random_erasing import RandomErasing
 parser = argparse.ArgumentParser(description='PyTorch Cross-Modality Training')
 parser.add_argument('--dataset', default='sysu', help='dataset name: regdb or sysu]')
 parser.add_argument('--lr', default=0.01, type=float, help='learning rate, 0.00035 for adam')
-parser.add_argument('--optim', default='sgd', type=str, help='optimizer')
+parser.add_argument('--optim', default='AdamW', type=str, help='optimizer')
 parser.add_argument('--arch', default='resnet50', type=str, help='network baseline:resnet18 or resnet50')
 parser.add_argument('--resume', '-r', default='', type=str, help='resume from checkpoint')
 parser.add_argument('--test-only', action='store_true', help='test only')
@@ -36,7 +37,7 @@ parser.add_argument('--workers', default=4, type=int, metavar='N', help='number 
 # parser.add_argument('--img_h', default=384, type=int, metavar='imgh', help='img height')
 parser.add_argument('--img_w', default=128, type=int, metavar='imgw', help='img width')
 parser.add_argument('--img_h', default=256, type=int, metavar='imgh', help='img height')
-parser.add_argument('--batch-size', default=6, type=int, metavar='B', help='training batch size')
+parser.add_argument('--batch-size', default=8, type=int, metavar='B', help='training batch size')
 # parser.add_argument('--batch-size', default=8, type=int, metavar='B', help='training batch size')
 parser.add_argument('--test-batch', default=4, type=int, metavar='tb', help='testing batch size')
 parser.add_argument('--margin', default=0.3, type=float, metavar='margin', help='triplet loss margin')
@@ -44,7 +45,7 @@ parser.add_argument('--erasing_p', default=0.5, type=float, help='Random Erasing
 parser.add_argument('--num_pos', default=4, type=int, help='num of pos per identity in each modality')
 parser.add_argument('--trial', default=2, type=int, metavar='t', help='trial (only for RegDB dataset)')
 parser.add_argument('--seed', default=0, type=int, metavar='t', help='random seed')
-parser.add_argument('--gpu', default='3', type=str, help='gpu device ids for CUDA_VISIBLE_DEVICES')
+parser.add_argument('--gpu', default='7', type=str, help='gpu device ids for CUDA_VISIBLE_DEVICES')
 parser.add_argument('--mode', default='all', type=str, help='all or indoor')
 parser.add_argument('--lambda_1', default=0.8, type=float, help='learning rate, 0.00035 for adam')
 parser.add_argument('--lambda_2', default=0.01, type=float, help='learning rate, 0.00035 for adam')
@@ -59,18 +60,21 @@ if dataset == 'sysu':
     data_path = '../Datasets/SYSU-MM01/'
     # data_path = '/home/guohangyu/data/datasets/SYSU-MM01'
     log_path = args.log_path + 'sysu_log/'
+    train_mode = [1, 2]
     test_mode = [1, 2]  # thermal to visible
     pool_dim = 768
 elif dataset == 'regdb':
     data_path = '../Datasets/RegDB/'
     # data_path = '/home/guohangyu/data/datasets/RegDB'
     log_path = args.log_path + 'regdb_log/'
+    train_mode = [1, 2]
     test_mode = [2, 1]  # visible to thermal
     pool_dim = 768
 elif dataset == 'llcm':
     data_path = '../Datasets/LLCM/'
     # data_path = '/home/guohangyu/data/datasets/LLCM/LLCM'
     log_path = args.log_path + 'llcm_log/'
+    train_mode = [1, 2]
     test_mode = [1, 2]  # [1, 2]: IR to VIS; [2, 1]: VIS to IR;
     pool_dim = 768
 
@@ -84,7 +88,7 @@ if not os.path.isdir(args.vis_log_path):
     os.makedirs(args.vis_log_path)
 
 suffix = dataset
-suffix = suffix + '_deen_p{}_n{}_lr_{}_seed_{}'.format(args.num_pos, args.batch_size, args.lr, args.seed)
+suffix = suffix + '_llcm_lr__separate_{}_n{}_lr_{}_seed_{}'.format(args.num_pos, args.batch_size, args.lr, args.seed)
 
 
 if not args.optim == 'sgd':
@@ -202,7 +206,7 @@ print('  ------------------------------')
 print('Data Loading Time:\t {:.3f}'.format(time.time() - end))
 
 print('==> Building model..')
-net = vit_base_patch16_224_TransReID(n_class, dataset)
+net = vit_base_patch16_224_TransReID_SEP(n_class, dataset)
 
 
 # 加载预训练模型的参数
@@ -235,32 +239,38 @@ criterion_id.to(device)
 criterion_tri.to(device)
 criterion_cpm.to(device)
 
-if args.optim == 'sgd':
+# if args.optim == 'sgd':
+#     ignored_params =   list(map(id, net.bottleneck.parameters())) \
+#                      + list(map(id, net.classifier.parameters()))
+
+#     base_params = filter(lambda p: id(p) not in ignored_params, net.parameters())
+
+#     optimizer = optim.SGD([
+#         {'params': base_params, 'lr': 0.1 * args.lr},
+#         {'params': net.bottleneck.parameters(), 'lr': args.lr},
+#         {'params': net.classifier.parameters(), 'lr': args.lr}],
+#         weight_decay=5e-4, momentum=0.9, nesterov=True)
+if args.optim == 'AdamW':
     ignored_params =   list(map(id, net.bottleneck.parameters())) \
                      + list(map(id, net.classifier.parameters()))
 
     base_params = filter(lambda p: id(p) not in ignored_params, net.parameters())
 
-    optimizer = optim.SGD([
+    optimizer = optim.AdamW([
         {'params': base_params, 'lr': 0.1 * args.lr},
         {'params': net.bottleneck.parameters(), 'lr': args.lr},
         {'params': net.classifier.parameters(), 'lr': args.lr}],
-        weight_decay=5e-4, momentum=0.9, nesterov=True)
+        weight_decay=5e-4)
 
 # exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
 # 学习率这一部分和论文提到的不一样
 def adjust_learning_rate(optimizer, epoch):
-    """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
-    if epoch < 10:
-        lr = args.lr * (epoch + 1) / 10
-    elif epoch >= 10 and epoch < 20:
+    if epoch < 15:
         lr = args.lr
-    elif epoch >= 20 and epoch < 80:
+    elif epoch >= 15 and epoch < 30:
         lr = args.lr * 0.1
-    elif epoch >= 80:
+    else:
         lr = args.lr * 0.01
-    elif epoch >= 120:
-        lr = args.lr * 0.001
 
     optimizer.param_groups[0]['lr'] = 0.1 * lr
     for i in range(len(optimizer.param_groups) - 1):
@@ -295,9 +305,9 @@ def train(epoch):
 
         labels = Variable(labels.cuda())
         data_time.update(time.time() - end)
-
-        feat1, feat1_att, out1 = net(input1)
-        feat2, feat2_att, out2 = net(input2)
+        # model=1: visible, model=2: infrared 
+        feat1, feat1_att, out1 = net(input1, train_mode[0])
+        feat2, feat2_att, out2 = net(input2, train_mode[1])
         # print(net.training)
         # print(net)
 
@@ -321,15 +331,7 @@ def train(epoch):
         # measure elapsed time
         batch_time.update(time.time() - end)
         end = time.time()
-        # if batch_idx % 50 == 0:
-        #     print('Epoch: [{}][{}/{}] '
-        #           'Loss:{train_loss.val:.3f} '
-        #           'iLoss:{id_loss.val:.3f} '
-        #           'TLoss:{tri_loss.val:.3f} '
-        #           'CLoss:{cpm_loss.val:.3f} '
-        #           'OLoss:{ort_loss.val:.3f} '.format(
-        #         epoch, batch_idx, len(trainloader),
-        #         train_loss=train_loss, id_loss=id_loss, tri_loss=tri_loss, cpm_loss=cpm_loss, ort_loss=ort_loss))
+
         if batch_idx % 50 == 0:
             print('Epoch: [{}][{}/{}] '
                   'Loss:{train_loss.val:.3f} '
@@ -358,7 +360,7 @@ def test(epoch):
             batch_num = input.size(0)
             input = Variable(input.cuda())
             # feat, feat_att = net(input, input, test_mode[0])
-            feat, feat_att, out = net(input)
+            feat, feat_att, out = net(input, test_mode[0])
             gall_feat[ptr:ptr + batch_num, :] = feat.detach().cpu().numpy()
             gall_feat_att[ptr:ptr + batch_num, :] = feat_att.detach().cpu().numpy()
             ptr = ptr + batch_num
@@ -377,7 +379,7 @@ def test(epoch):
             batch_num = input.size(0)
             input = Variable(input.cuda())
             # feat, feat_att = net(input, input, test_mode[1])
-            feat, feat_att, out = net(input)
+            feat, feat_att, out = net(input, test_mode[1])
             query_feat[ptr:ptr + batch_num, :] = feat.detach().cpu().numpy()
             query_feat_att[ptr:ptr + batch_num, :] = feat_att.detach().cpu().numpy()
             ptr = ptr + batch_num
@@ -415,7 +417,7 @@ def test(epoch):
 
 # training
 print('==> Start Training...')
-for epoch in range(start_epoch, 151 - start_epoch):
+for epoch in range(start_epoch, 71 - start_epoch):
 
     print('==> Preparing Data Loader...')
     # identity sampler
